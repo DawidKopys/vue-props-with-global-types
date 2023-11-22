@@ -1,40 +1,94 @@
 # props-with-global-types
 
-This template should help get you started developing with Vue 3 in Vite.
+This repo presents two ways of using global types for defining props in vue components (and shows only one of them actually works):
+1. defining your type in a separate file and then exporting it from within the `declare global { ... }` block
+```typescript
+// /types/GlobalExternalType1.ts
+export interface GlobalExternalType1 {
+  bar: string
+}
 
-## Recommended IDE Setup
+```
+```typescript
+// /types/index.ts
+declare global {
+  // @ts-ignore
+  export type { GlobalExternalType1 } from './GlobalExternalType1'
+}
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+export {}
+```
+2. defining your type inside `declare global { ... }` block
+```typescript
+// /types/index.ts
+declare global {
+  interface GlobalExternalType2 {
+    bar: string
+  }
+}
 
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
-
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more performant. You can enable it by the following steps:
-
-1. Disable the built-in TypeScript Extension
-    1) Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-    2) Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
+export {}
 ```
 
-### Compile and Hot-Reload for Development
+It shows that types declared in both ways seem to be available globally in our project.
+It seems that we can define props with both. **The problem is** - only solution 2 seems to **actually** work.
 
-```sh
-npm run dev
+- Component `CompUsingGlobalType1.vue` defines props using global type defined with approach 1.
+```typescript
+defineProps<{ foo: GlobalExternalType1 }>()
+```
+- Component `CompUsingGlobalType2.vue` defines props using global type defined with approach 2.
+```typescript
+defineProps<{ foo: GlobalExternalType2 }>()
+```
+- `App.vue` uses both components and passes to them prop `foo` **with wrong type of bar property**, hence we expect to get typescript errors for both.
+
+```vue
+<template>
+  <!-- we should get ts errors for all components -->
+  <CompWithExplicitlyImportedType
+    :foo="{ bar: 123 }"
+  />
+  <CompUsingGlobalType1 
+    :foo="{ bar: 123 }"
+  />
+  <CompUsingGlobalType2
+    :foo="{ bar: 123 }"
+  />
+</template>
 ```
 
-### Type-Check, Compile and Minify for Production
+It turns out however, that we only get ts error for the component defining props using types declared with approach 2 - `CompUsingGlobalType2.vue`.
 
-```sh
-npm run build
+## **For `CompUsingGlobalType1.vue` we are not getting any ts errors (even though we are passing `number` instead of `string` for the `bar` property).**
+
+```
+[12:21:55] ➜  props-with-global-types git:(main) npm run type-check
+
+> props-with-global-types@0.0.0 type-check
+> vue-tsc --noEmit -p tsconfig.app.json --composite false
+
+src/App.vue:10:13 - error TS2322: Type 'number' is not assignable to type 'string'.
+
+10     :foo="{ bar: 123 }"
+               ~~~
+
+  src/types/ExternalType.ts:2:3
+    2   bar: string
+        ~~~
+    The expected type comes from property 'bar' which is declared here on type 'ExternalType'
+
+src/App.vue:16:13 - error TS2322: Type 'number' is not assignable to type 'string'.
+
+16     :foo="{ bar: 123 }"
+               ~~~
+
+  src/types/index.ts:9:5
+    9     bar: string
+          ~~~
+    The expected type comes from property 'bar' which is declared here on type 'GlobalExternalType2'
+
+
+Found 2 errors in the same file, starting at: src/App.vue:10
+
 ```
