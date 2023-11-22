@@ -1,6 +1,19 @@
 # props-with-global-types
 
-This repo presents two ways of using global types for defining props in vue components (and shows only one of them actually works):
+This repo presents two ways of using global types for defining props in vue components and shows only one of them actually works.
+
+To reproduce this issue:
+```
+npm i
+npm run type-check
+```
+
+Expected result: we get typescript error in `App.vue` in place of using `CompUsingGlobalType1` as we are passing `number` instead of `string` to its prop `foo.bar`.
+
+Actual result: there is no typescript error in above place.
+
+### Context
+This repo presents two ways of using global types for defining props in vue components (and shows only one of them actually works).
 1. defining your type in a separate file and then exporting it from within the `declare global { ... }` block
 ```typescript
 // /types/GlobalExternalType1.ts
@@ -90,5 +103,4 @@ src/App.vue:16:13 - error TS2322: Type 'number' is not assignable to type 'strin
 
 
 Found 2 errors in the same file, starting at: src/App.vue:10
-
 ```
